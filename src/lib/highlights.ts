@@ -87,20 +87,21 @@ export function applyHighlight(h: Highlight, root: HTMLElement) {
 function wrapRange(range: Range, h: Highlight) {
   const bg = colorBg(h.color);
   const textNodes: Text[] = [];
-  const walker = document.createTreeWalker(
-    range.commonAncestorContainer,
-    NodeFilter.SHOW_TEXT,
-    {
+  const cac = range.commonAncestorContainer;
+  if (cac.nodeType === Node.TEXT_NODE) {
+    textNodes.push(cac as Text);
+  } else {
+    const walker = document.createTreeWalker(cac, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
         if (!range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       },
+    });
+    let n = walker.nextNode();
+    while (n) {
+      textNodes.push(n as Text);
+      n = walker.nextNode();
     }
-  );
-  let n = walker.nextNode();
-  while (n) {
-    textNodes.push(n as Text);
-    n = walker.nextNode();
   }
   textNodes.forEach((node) => {
     const isStart = node === range.startContainer;
