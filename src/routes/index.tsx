@@ -122,17 +122,16 @@ function Index() {
     if (!el) return;
     const html2pdf = (await import("html2pdf.js")).default;
     toast.message("Preparing PDF…");
-    await html2pdf()
-      .set({
-        margin: [12, 12, 12, 12],
-        filename: `${article.title.replace(/[^a-z0-9]+/gi, "_").slice(0, 60)}.pdf`,
-        image: { type: "jpeg", quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"] },
-      } as Parameters<ReturnType<typeof html2pdf>["set"]>[0])
-      .from(el)
-      .save();
+    const opts = {
+      margin: [12, 12, 12, 12],
+      filename: `${article.title.replace(/[^a-z0-9]+/gi, "_").slice(0, 60)}.pdf`,
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] },
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (html2pdf() as any).set(opts).from(el).save();
   }
 
   return (
