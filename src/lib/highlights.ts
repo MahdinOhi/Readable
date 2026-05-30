@@ -20,14 +20,15 @@ function getXPath(node: Node, root: HTMLElement): string {
   const parts: string[] = [];
   let cur: Node | null = node;
   while (cur && cur !== root) {
-    const parent = cur.parentNode;
+    const parent: ParentNode | null = cur.parentNode;
     if (!parent) break;
+    const ref: Node = cur;
     const siblings = Array.from(parent.childNodes).filter(
-      (n) => n.nodeType === cur!.nodeType && n.nodeName === cur!.nodeName
+      (n: Node) => n.nodeType === ref.nodeType && n.nodeName === ref.nodeName
     );
-    const idx = siblings.indexOf(cur as ChildNode);
-    parts.unshift(`${cur.nodeName}[${idx}]`);
-    cur = parent;
+    const idx = siblings.indexOf(ref as ChildNode);
+    parts.unshift(`${ref.nodeName}[${idx}]`);
+    cur = parent as Node;
   }
   return parts.join("/");
 }
