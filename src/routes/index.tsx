@@ -11,7 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast, Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { Reader } from "@/components/Reader";
 import { SavedDrawer } from "@/components/SavedDrawer";
 import { extractArticle } from "@/lib/extractor";
@@ -129,7 +130,7 @@ function Index() {
         html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         pagebreak: { mode: ["css", "legacy"] },
-      })
+      } as Parameters<ReturnType<typeof html2pdf>["set"]>[0])
       .from(el)
       .save();
   }
