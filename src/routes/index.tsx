@@ -117,22 +117,36 @@ function Index() {
     }
   }
 
-  async function exportPDF() {
+  function exportPDF() {
     if (!article) return;
     const el = document.getElementById("reader-article");
     if (!el) return;
-    const html2pdf = (await import("html2pdf.js")).default;
-    toast.message("Preparing PDF…");
-    const opts = {
-      margin: [12, 12, 12, 12],
-      filename: `${article.title.replace(/[^a-z0-9]+/gi, "_").slice(0, 60)}.pdf`,
-      image: { type: "jpeg", quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"] },
-    };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (html2pdf() as any).set(opts).from(el).save();
+    const win = window.open("", "_blank", "width=900,height=1000");
+    if (!win) {
+      toast.error("Pop-up blocked. Allow pop-ups to export PDF.");
+      return;
+    }
+    const title = article.title.replace(/[<>&"]/g, "");
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:Georgia,"Iowan Old Style",Palatino,serif;color:#111;background:#fff;max-width:720px;margin:32px auto;padding:0 24px;font-size:${fontSize}px;line-height:${lineHeight};}
+  h1{font-size:2em;line-height:1.2;margin:0 0 .5em}
+  .meta{color:#666;font-size:.85em;margin-bottom:1.5em;border-bottom:1px solid #ddd;padding-bottom:1em}
+  img{max-width:100%;height:auto}
+  a{color:#0645ad;text-decoration:underline}
+  pre,code{background:#f4f4f4;padding:2px 4px;border-radius:3px;font-family:ui-monospace,Menlo,monospace}
+  pre{padding:12px;overflow:auto}
+  blockquote{border-left:3px solid #ccc;margin:1em 0;padding:.2em 1em;color:#555}
+  mark{padding:0 2px;border-radius:2px}
+  @media print{body{margin:0;max-width:none}a{color:#000}}
+</style></head><body>
+<h1>${title}</h1>
+<div class="meta">${[article.byline, article.publishedTime ? new Date(article.publishedTime).toLocaleDateString() : "", article.siteName].filter(Boolean).join(" · ")}</div>
+${el.querySelector(".reader-content")?.innerHTML ?? ""}
+<script>window.addEventListener('load',()=>{setTimeout(()=>{window.focus();window.print();},300)});</script>
+</body></html>`);
+    win.document.close();
   }
 
   return (
