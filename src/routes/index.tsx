@@ -19,6 +19,7 @@ import { extractArticle } from "@/lib/extractor";
 import { db, getSetting, setSetting, type Article } from "@/lib/db";
 
 export const Route = createFileRoute("/")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Readable — Clean reading view for any article" },
