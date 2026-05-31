@@ -6,15 +6,18 @@ import {
   saveHighlight,
 } from "@/lib/highlights";
 import { HighlightPopover } from "./HighlightPopover";
+import { Edit2, Trash2 } from "lucide-react";
 
 interface Props {
   article: Article;
   fontSize: number;
   lineHeight: number;
   fontFamily: "serif" | "sans";
+  onEdit?: (article: Article) => void;
+  onDelete?: (id: string) => void;
 }
 
-export function Reader({ article, fontSize, lineHeight, fontFamily }: Props) {
+export function Reader({ article, fontSize, lineHeight, fontFamily, onEdit, onDelete }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [popover, setPopover] = useState<
     { x: number; y: number; range: Range } | null
@@ -88,11 +91,33 @@ export function Reader({ article, fontSize, lineHeight, fontFamily }: Props) {
             : 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       }}
     >
-      <header className="mb-8 border-b border-border pb-6">
-        <h1 className="text-3xl font-bold leading-tight text-foreground sm:text-4xl">
-          {article.title}
-        </h1>
-        <div className="mt-3 text-sm text-muted-foreground">
+      <header className="mb-8 border-b border-border pb-6 flex flex-col gap-3">
+        <div className="flex justify-between items-start gap-4">
+          <h1 className="text-3xl font-bold leading-tight text-foreground sm:text-4xl flex-1">
+            {article.title}
+          </h1>
+          <div className="flex items-center gap-1.5 flex-shrink-0 print:hidden mt-1">
+            {onEdit && (
+              <button
+                onClick={() => onEdit(article)}
+                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/40"
+                title="Edit article"
+              >
+                <Edit2 size={14} />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => onDelete(article.id)}
+                className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors border border-border/40"
+                title="Delete article"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="text-sm text-muted-foreground">
           {article.byline && <span>{article.byline}</span>}
           {article.byline && article.publishedTime && <span> · </span>}
           {article.publishedTime && (

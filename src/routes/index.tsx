@@ -1,6 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { BookOpen, Download, Library, Loader2, Moon, Sun, Type } from "lucide-react";
+import {
+  BookOpen,
+  Download,
+  Library,
+  Loader2,
+  Palette,
+  Type,
+  Check,
+  Database,
+  LogIn,
+  LogOut,
+  User,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,10 +27,17 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { Reader } from "@/components/Reader";
 import { SavedDrawer } from "@/components/SavedDrawer";
+import { ThemePanel, type ThemeName, type CustomColors, PRESET_THEMES } from "@/components/ThemePanel";
+import { LibraryDashboard } from "@/components/LibraryDashboard";
+import { ArticleDialog } from "@/components/ArticleDialog";
+import { AuthDialog } from "@/components/AuthDialog";
+
+import { supabase } from "@/lib/supabase";
+import { syncUpArticle, syncDeleteArticle, syncDownAll } from "@/lib/sync";
 import { extractArticle } from "@/lib/extractor";
 import { db, getSetting, setSetting, type Article } from "@/lib/db";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/")(({
   ssr: false,
   head: () => ({
     meta: [
@@ -37,15 +56,42 @@ export const Route = createFileRoute("/")({
     ],
   }),
   component: Index,
-});
+} as any));
 
-type Theme = "light" | "dark" | "sepia";
+// All class names that can appear on <html>
+const ALL_THEME_CLASSES = [
+  "dark",
+  "sepia",
+  "midnight",
+  "forest",
+  "ocean",
+  "rose",
+  "slate",
+  "solarized",
+  "custom",
+];
 
-function applyTheme(theme: Theme) {
+function hexToOklch(hex: string): string {
+  // We convert hex to rgb then just pass through as a fallback;
+  // for custom theme we set CSS variables directly as hex values
+  return hex;
+}
+
+function applyTheme(theme: ThemeName, custom?: CustomColors) {
   const root = document.documentElement;
-  root.classList.remove("dark", "sepia");
-  if (theme === "dark") root.classList.add("dark");
-  if (theme === "sepia") root.classList.add("sepia");
+  // Remove all known theme classes
+  root.classList.remove(...ALL_THEME_CLASSES);
+  if (theme !== "light") {
+    root.classList.add(theme);
+  }
+  // For custom theme, set the CSS variables
+  if (theme === "custom" && custom) {
+    root.style.setProperty("--custom-bg", custom.background);
+    root.style.setProperty("--custom-fg", custom.foreground);
+  } else {
+    root.style.removeProperty("--custom-bg");
+    root.style.removeProperty("--custom-fg");
+  }
 }
 
 function Index() {
@@ -53,9 +99,47 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [article, setArticle] = useState<Article | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [themePanelOpen, setThemePanelOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const [theme, setTheme] = useState<Theme>("light");
+  const [user, setUser] = useState<any>(null);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+
+  // Subscribe to Supabase auth session state
+  useEffect(() => {
+    if (!supabase) return;
+
+    // Check active session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        // Sync down remote library
+        syncDownAll().then(() => setRefreshKey((k) => k + 1));
+      }
+    });
+
+    // Listen for state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+        if (event === "SIGNED_IN" && session?.user) {
+          syncDownAll().then(() => setRefreshKey((k) => k + 1));
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const [theme, setTheme] = useState<ThemeName>("light");
+  const [customColors, setCustomColors] = useState<CustomColors>({
+    background: "#ffffff",
+    foreground: "#1a1a2e",
+  });
   const [fontSize, setFontSize] = useState(18);
   const [lineHeight, setLineHeight] = useState(1.7);
   const [fontFamily, setFontFamily] = useState<"serif" | "sans">("serif");
@@ -63,32 +147,40 @@ function Index() {
   // Load settings on mount
   useEffect(() => {
     (async () => {
-      const t = await getSetting<Theme>("theme", "light");
+      const t = await getSetting<ThemeName>("theme", "light");
+      const cc = await getSetting<CustomColors>("customColors", {
+        background: "#ffffff",
+        foreground: "#1a1a2e",
+      });
       const fs = await getSetting<number>("fontSize", 18);
       const lh = await getSetting<number>("lineHeight", 1.7);
       const ff = await getSetting<"serif" | "sans">("fontFamily", "serif");
       setTheme(t);
+      setCustomColors(cc);
       setFontSize(fs);
       setLineHeight(lh);
       setFontFamily(ff);
-      applyTheme(t);
+      applyTheme(t, cc);
     })();
   }, []);
 
   useEffect(() => {
-    applyTheme(theme);
+    applyTheme(theme, customColors);
     setSetting("theme", theme);
-  }, [theme]);
+  }, [theme, customColors]);
 
-  useEffect(() => {
-    setSetting("fontSize", fontSize);
-  }, [fontSize]);
-  useEffect(() => {
-    setSetting("lineHeight", lineHeight);
-  }, [lineHeight]);
-  useEffect(() => {
-    setSetting("fontFamily", fontFamily);
-  }, [fontFamily]);
+  useEffect(() => { setSetting("fontSize", fontSize); }, [fontSize]);
+  useEffect(() => { setSetting("lineHeight", lineHeight); }, [lineHeight]);
+  useEffect(() => { setSetting("fontFamily", fontFamily); }, [fontFamily]);
+
+  function handleThemeChange(t: ThemeName) {
+    setTheme(t);
+  }
+
+  function handleCustomColors(c: CustomColors) {
+    setCustomColors(c);
+    setSetting("customColors", c);
+  }
 
   async function handleFetch(e?: React.FormEvent) {
     e?.preventDefault();
@@ -105,6 +197,7 @@ function Index() {
     setLoading(true);
     try {
       const a = await extractArticle(target);
+      await syncUpArticle(a);
       setArticle(a);
       setRefreshKey((k) => k + 1);
       toast.success("Article ready");
@@ -144,31 +237,43 @@ function Index() {
 <h1>${title}</h1>
 <div class="meta">${[article.byline, article.publishedTime ? new Date(article.publishedTime).toLocaleDateString() : "", article.siteName].filter(Boolean).join(" · ")}</div>
 ${el.querySelector(".reader-content")?.innerHTML ?? ""}
-<script>window.addEventListener('load',()=>{setTimeout(()=>{window.focus();window.print();},300)});</script>
+<script>window.addEventListener('load',()=>{setTimeout(()=>{window.focus();window.print();},300)});<\/script>
 </body></html>`);
     win.document.close();
   }
+
+  // Current theme label for aria
+  const currentThemeLabel =
+    PRESET_THEMES.find((t) => t.name === theme)?.label ?? "Custom";
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Toaster richColors position="top-center" />
 
       {/* Top bar */}
-      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 print:hidden">
-        <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3">
-          <div className="flex items-center gap-2 pr-2 font-semibold">
-            <BookOpen className="h-5 w-5" />
-            <span className="hidden sm:inline">Readable</span>
-          </div>
-          <form onSubmit={handleFetch} className="flex flex-1 gap-2">
+      <header className="app-header print:hidden">
+        <div className="app-header-inner">
+          {/* Logo */}
+          <button
+            onClick={() => setArticle(null)}
+            className="app-logo cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+            title="Go to Library"
+          >
+            <BookOpen className="app-logo-icon" />
+            <span className="app-logo-text font-bold">Readable</span>
+          </button>
+
+          {/* URL form */}
+          <form onSubmit={handleFetch} className="app-url-form">
             <Input
+              id="url-input"
               type="text"
               placeholder="Paste an article URL…"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               className="flex-1"
             />
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} id="read-btn">
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
@@ -177,86 +282,147 @@ ${el.querySelector(".reader-content")?.innerHTML ?? ""}
             </Button>
           </form>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Typography">
-                <Type className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Font</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => setFontFamily("serif")}>
-                Serif {fontFamily === "serif" && "✓"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFontFamily("sans")}>
-                Sans-serif {fontFamily === "sans" && "✓"}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Font size</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => setFontSize(16)}>
-                Small {fontSize === 16 && "✓"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFontSize(18)}>
-                Medium {fontSize === 18 && "✓"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFontSize(21)}>
-                Large {fontSize === 21 && "✓"}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Line spacing</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => setLineHeight(1.5)}>
-                Compact {lineHeight === 1.5 && "✓"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLineHeight(1.7)}>
-                Normal {lineHeight === 1.7 && "✓"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLineHeight(2)}>
-                Relaxed {lineHeight === 2 && "✓"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="app-header-actions">
+            {/* Typography dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="action-btn" aria-label="Typography settings" id="typography-btn">
+                  <Type size={16} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Font family</DropdownMenuLabel>
+                <DropdownMenuItem id="font-serif-item" onClick={() => setFontFamily("serif")}>
+                  <span className="flex-1">Serif</span>
+                  <Check size={13} className={`typo-check ${fontFamily === "serif" ? "typo-check--visible" : ""}`} />
+                </DropdownMenuItem>
+                <DropdownMenuItem id="font-sans-item" onClick={() => setFontFamily("sans")}>
+                  <span className="flex-1">Sans-serif</span>
+                  <Check size={13} className={`typo-check ${fontFamily === "sans" ? "typo-check--visible" : ""}`} />
+                </DropdownMenuItem>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Theme">
-                {theme === "dark" ? (
-                  <Moon className="h-4 w-4" />
-                ) : (
-                  <Sun className="h-4 w-4" />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setTheme("light")}>
-                Light {theme === "light" && "✓"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("dark")}>
-                Dark {theme === "dark" && "✓"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("sepia")}>
-                Sepia {theme === "sepia" && "✓"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Font size</DropdownMenuLabel>
+                <DropdownMenuItem id="font-small-item" onClick={() => setFontSize(15)}>
+                  <span className="flex-1">Small</span>
+                  <Check size={13} className={`typo-check ${fontSize === 15 ? "typo-check--visible" : ""}`} />
+                </DropdownMenuItem>
+                <DropdownMenuItem id="font-medium-item" onClick={() => setFontSize(18)}>
+                  <span className="flex-1">Medium</span>
+                  <Check size={13} className={`typo-check ${fontSize === 18 ? "typo-check--visible" : ""}`} />
+                </DropdownMenuItem>
+                <DropdownMenuItem id="font-large-item" onClick={() => setFontSize(21)}>
+                  <span className="flex-1">Large</span>
+                  <Check size={13} className={`typo-check ${fontSize === 21 ? "typo-check--visible" : ""}`} />
+                </DropdownMenuItem>
+                <DropdownMenuItem id="font-xl-item" onClick={() => setFontSize(24)}>
+                  <span className="flex-1">X-Large</span>
+                  <Check size={13} className={`typo-check ${fontSize === 24 ? "typo-check--visible" : ""}`} />
+                </DropdownMenuItem>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Saved"
-            onClick={() => setDrawerOpen(true)}
-          >
-            <Library className="h-4 w-4" />
-          </Button>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Line spacing</DropdownMenuLabel>
+                <DropdownMenuItem id="line-compact-item" onClick={() => setLineHeight(1.5)}>
+                  <span className="flex-1">Compact</span>
+                  <Check size={13} className={`typo-check ${lineHeight === 1.5 ? "typo-check--visible" : ""}`} />
+                </DropdownMenuItem>
+                <DropdownMenuItem id="line-normal-item" onClick={() => setLineHeight(1.7)}>
+                  <span className="flex-1">Normal</span>
+                  <Check size={13} className={`typo-check ${lineHeight === 1.7 ? "typo-check--visible" : ""}`} />
+                </DropdownMenuItem>
+                <DropdownMenuItem id="line-relaxed-item" onClick={() => setLineHeight(2)}>
+                  <span className="flex-1">Relaxed</span>
+                  <Check size={13} className={`typo-check ${lineHeight === 2 ? "typo-check--visible" : ""}`} />
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Export PDF"
-            onClick={exportPDF}
-            disabled={!article}
-          >
-            <Download className="h-4 w-4" />
-          </Button>
+            {/* Theme panel trigger */}
+            <button
+              className="action-btn"
+              aria-label={`Theme: ${currentThemeLabel}`}
+              id="theme-btn"
+              onClick={() => setThemePanelOpen(true)}
+            >
+              <Palette size={16} />
+            </button>
+
+
+
+            {/* Supabase user auth */}
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="action-btn text-primary" aria-label="User profile" id="user-profile-btn">
+                    <User size={16} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground truncate">
+                    {user.email || user.phone || "Authenticated"}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    id="sync-now-item"
+                    onClick={async () => {
+                      toast.promise(syncDownAll().then(() => setRefreshKey((k) => k + 1)), {
+                        loading: "Syncing with Supabase...",
+                        success: "Library synchronized!",
+                        error: "Failed to sync library",
+                      });
+                    }}
+                  >
+                    Sync Now
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    id="logout-item"
+                    onClick={async () => {
+                      if (supabase) {
+                        await supabase.auth.signOut();
+                        setUser(null);
+                        toast.success("Logged out successfully");
+                        window.location.reload();
+                      }
+                    }}
+                    className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                  >
+                    <LogOut size={13} className="mr-2" />
+                    <span>Log Out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <button
+                className="action-btn"
+                aria-label="Log In"
+                id="login-btn"
+                onClick={() => setAuthDialogOpen(true)}
+              >
+                <LogIn size={16} />
+              </button>
+            )}
+
+            {/* Saved articles */}
+            <button
+              className="action-btn"
+              aria-label="Saved articles"
+              id="saved-btn"
+              onClick={() => setDrawerOpen(true)}
+            >
+              <Library size={16} />
+            </button>
+
+            {/* Export PDF */}
+            <button
+              className="action-btn"
+              aria-label="Export PDF"
+              id="export-pdf-btn"
+              onClick={exportPDF}
+              disabled={!article}
+            >
+              <Download size={16} />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -269,18 +435,75 @@ ${el.querySelector(".reader-content")?.innerHTML ?? ""}
             fontSize={fontSize}
             lineHeight={lineHeight}
             fontFamily={fontFamily}
+            onEdit={(a) => {
+              setEditingArticle(a);
+              setDialogOpen(true);
+            }}
+            onDelete={async (id) => {
+              if (confirm("Are you sure you want to delete this article and its highlights?")) {
+                try {
+                  await db.articles.delete(id);
+                  await db.highlights.where("articleId").equals(id).delete();
+                  await syncDeleteArticle(id);
+                  setArticle(null);
+                  setRefreshKey((k) => k + 1);
+                  toast.success("Article deleted");
+                } catch (e) {
+                  toast.error("Failed to delete article");
+                }
+              }
+            }}
           />
         ) : (
-          <EmptyState onPick={(u) => { setUrl(u); }} />
+          <LibraryDashboard
+            onSelectArticle={(a) => setArticle(a)}
+            refreshTrigger={refreshKey}
+          />
         )}
       </main>
 
+      {/* Saved drawer */}
       <SavedDrawer
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         onOpen={(a) => setArticle(a)}
         refreshKey={refreshKey}
       />
+
+      {/* Theme panel */}
+      <ThemePanel
+        open={themePanelOpen}
+        onOpenChange={setThemePanelOpen}
+        currentTheme={theme}
+        customColors={customColors}
+        onThemeChange={handleThemeChange}
+        onCustomColorsChange={handleCustomColors}
+      />
+
+      {/* CRUD dialog */}
+      <ArticleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        article={editingArticle}
+        onSave={async (saved) => {
+          await syncUpArticle(saved);
+          setRefreshKey((k) => k + 1);
+          if (article && article.id === saved.id) {
+            setArticle(saved); // Update the article currently shown in the reader
+          }
+        }}
+      />
+
+      {/* Auth dialog */}
+      <AuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        onAuthSuccess={() => {
+          setRefreshKey((k) => k + 1);
+        }}
+      />
+
+
     </div>
   );
 }
@@ -295,31 +518,32 @@ function EmptyState({ onPick }: { onPick: (u: string) => void }) {
       .toArray()
       .then(setRecent);
   }, []);
+
   return (
-    <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-      <BookOpen className="mx-auto h-10 w-10 text-muted-foreground" />
-      <h1 className="mt-6 text-3xl font-semibold tracking-tight">
-        Read anything, distraction-free.
-      </h1>
-      <p className="mt-3 text-muted-foreground">
-        Paste any article URL above. Readable strips away ads, navs, and clutter so
-        you can focus on what matters — then highlight, save offline, or export to PDF.
+    <div className="empty-state">
+      <div className="empty-state-icon-wrap">
+        <BookOpen className="h-7 w-7 text-muted-foreground" />
+      </div>
+      <h1>Read anything, distraction-free.</h1>
+      <p className="empty-state-desc">
+        Paste any article URL above. Readable strips away ads, navs, and
+        clutter so you can focus on what matters — then highlight, save
+        offline, or export to PDF.
       </p>
+
       {recent.length > 0 && (
-        <div className="mt-12 text-left">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-            Recent
-          </h2>
-          <ul className="mt-3 divide-y divide-border rounded-md border border-border">
+        <div style={{ width: "100%", textAlign: "left" }}>
+          <p className="empty-recent-heading">Recent</p>
+          <ul className="empty-recent-list" style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {recent.map((a) => (
               <li key={a.id}>
                 <button
+                  className="empty-recent-item"
                   onClick={() => onPick(a.url)}
-                  className="block w-full px-4 py-3 text-left hover:bg-accent"
                 >
-                  <div className="font-medium">{a.title}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {a.url}
+                  <div className="empty-recent-title">{a.title}</div>
+                  <div className="empty-recent-url">
+                    {a.siteName || new URL(a.url).hostname}
                   </div>
                 </button>
               </li>

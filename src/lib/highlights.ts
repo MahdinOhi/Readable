@@ -1,4 +1,5 @@
 import { db, type Highlight } from "./db";
+import { syncUpHighlight } from "./sync";
 
 export const HIGHLIGHT_COLORS: { name: string; value: string; bg: string }[] = [
   { name: "Yellow", value: "yellow", bg: "#fef3a8" },
@@ -144,6 +145,7 @@ export async function saveHighlight(
     createdAt: Date.now(),
   };
   await db.highlights.put(h);
+  await syncUpHighlight(h);
   return h;
 }
 
