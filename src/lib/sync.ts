@@ -20,6 +20,15 @@ export async function syncDownAll() {
 
     if (artError) throw artError;
 
+    // Prune locally deleted articles (not present in Supabase for this user)
+    const remoteArticleIds = new Set((remoteArticles || []).map((ra) => ra.id));
+    const localArticles = await db.articles.toArray();
+    for (const la of localArticles) {
+      if (!remoteArticleIds.has(la.id)) {
+        await db.articles.delete(la.id);
+      }
+    }
+
     if (remoteArticles && remoteArticles.length > 0) {
       const formattedArticles: Article[] = remoteArticles.map((ra) => ({
         id: ra.id,
@@ -43,6 +52,15 @@ export async function syncDownAll() {
       .eq("user_id", userId);
 
     if (hlError) throw hlError;
+
+    // Prune locally deleted highlights (not present in Supabase for this user)
+    const remoteHighlightIds = new Set((remoteHighlights || []).map((rh) => rh.id));
+    const localHighlights = await db.highlights.toArray();
+    for (const lh of localHighlights) {
+      if (!remoteHighlightIds.has(lh.id)) {
+        await db.highlights.delete(lh.id);
+      }
+    }
 
     if (remoteHighlights && remoteHighlights.length > 0) {
       const formattedHighlights: Highlight[] = remoteHighlights.map((rh) => ({

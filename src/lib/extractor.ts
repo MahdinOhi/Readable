@@ -1,35 +1,14 @@
 import { Readability } from "@mozilla/readability";
 import DOMPurify from "dompurify";
 import { db, hashUrl, type Article } from "./db";
-
-const PROXIES = [
-  (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-];
-
-async function fetchHTML(url: string): Promise<string> {
-  let lastErr: unknown;
-  for (const p of PROXIES) {
-    try {
-      const res = await fetch(p(url));
-      if (!res.ok) throw new Error(`Status ${res.status}`);
-      const text = await res.text();
-      if (text && text.length > 200) return text;
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw new Error(
-    `Failed to fetch URL. ${lastErr instanceof Error ? lastErr.message : ""}`
-  );
-}
+import { fetchArticleHtml } from "./api/extractor.functions";
 
 export async function extractArticle(url: string): Promise<Article> {
   const id = hashUrl(url);
   const cached = await db.articles.get(id);
   if (cached) return cached;
 
-  const html = await fetchHTML(url);
+  const { html } = await fetchArticleHtml({ data: { url } });
   const doc = new DOMParser().parseFromString(html, "text/html");
 
   // Fix relative URLs
