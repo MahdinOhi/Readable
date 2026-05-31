@@ -133,22 +133,26 @@ export async function syncDeleteArticle(id: string) {
   const userId = session.user.id;
 
   try {
-    const { error } = await supabase
+    const { error: artError } = await supabase
       .from("articles")
       .delete()
       .eq("id", id)
       .eq("user_id", userId);
 
-    if (error) throw error;
+    if (artError) throw artError;
 
     // Delete cascading highlights from Supabase
-    await supabase
+    const { error: hlError } = await supabase
       .from("highlights")
       .delete()
       .eq("article_id", id)
       .eq("user_id", userId);
-  } catch (err) {
+
+    if (hlError) throw hlError;
+  } catch (err: any) {
     console.error("Sync delete article failed:", err);
+    toast.error(`Failed to delete from cloud: ${err?.message || "Unknown error"}`);
+    throw err; // Re-throw so the caller knows it failed
   }
 }
 

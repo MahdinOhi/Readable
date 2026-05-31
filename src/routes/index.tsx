@@ -452,14 +452,18 @@ ${el.querySelector(".reader-content")?.innerHTML ?? ""}
             onDelete={async (id) => {
               if (confirm("Are you sure you want to delete this article and its highlights?")) {
                 try {
+                  // Delete from cloud first; if it fails, an error is surfaced and local is not deleted
+                  await syncDeleteArticle(id);
                   await db.articles.delete(id);
                   await db.highlights.where("articleId").equals(id).delete();
-                  await syncDeleteArticle(id);
                   setArticle(null);
                   setRefreshKey((k) => k + 1);
                   toast.success("Article deleted");
                 } catch (e) {
-                  toast.error("Failed to delete article");
+                  // syncDeleteArticle already toasts the cloud error; only toast generic error if local ops fail
+                  if (!(e instanceof Error) || !e.message.includes("cloud")) {
+                    toast.error("Failed to delete article");
+                  }
                 }
               }
             }}
