@@ -116,8 +116,8 @@ function wrapRange(range: Range, h: Highlight) {
     const mark = document.createElement("mark");
     mark.setAttribute("data-hl", h.id);
     mark.style.backgroundColor = bg;
-    mark.style.color = "inherit";
-    mark.style.padding = "0 1px";
+    mark.style.color = "#0f172a";
+    mark.style.padding = "0 2px";
     mark.style.borderRadius = "2px";
     mark.textContent = middle;
     const parent = node.parentNode!;
