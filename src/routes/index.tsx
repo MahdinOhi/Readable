@@ -8,7 +8,6 @@ import {
   Palette,
   Type,
   Check,
-  Database,
   LogIn,
   LogOut,
   User,
@@ -250,9 +249,10 @@ ${el.querySelector(".reader-content")?.innerHTML ?? ""}
     <div className="min-h-screen bg-background text-foreground">
       <Toaster richColors position="top-center" />
 
-      {/* Top bar */}
+      {/* Top bar — two-row on mobile, single row on md+ */}
       <header className="app-header print:hidden">
-        <div className="app-header-inner">
+        {/* ── Row 1 (all screens): Logo | spacer | Actions ── */}
+        <div className="app-header-row1">
           {/* Logo */}
           <button
             onClick={() => setArticle(null)}
@@ -263,27 +263,24 @@ ${el.querySelector(".reader-content")?.innerHTML ?? ""}
             <span className="app-logo-text font-bold">Readable</span>
           </button>
 
-          {/* URL form */}
-          <form onSubmit={handleFetch} className="app-url-form">
+          {/* URL form — hidden on mobile, shown inline on md+ */}
+          <form onSubmit={handleFetch} className="app-url-form app-url-form--desktop">
             <Input
-              id="url-input"
+              id="url-input-desktop"
               type="text"
               placeholder="Paste an article URL…"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               className="flex-1"
             />
-            <Button type="submit" disabled={loading} id="read-btn">
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Read"
-              )}
+            <Button type="submit" disabled={loading} id="read-btn-desktop" className="shrink-0">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Read"}
             </Button>
           </form>
 
+          {/* Action icons */}
           <div className="app-header-actions">
-            {/* Typography dropdown */}
+            {/* Typography */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="action-btn" aria-label="Typography settings" id="typography-btn">
@@ -300,7 +297,6 @@ ${el.querySelector(".reader-content")?.innerHTML ?? ""}
                   <span className="flex-1">Sans-serif</span>
                   <Check size={13} className={`typo-check ${fontFamily === "sans" ? "typo-check--visible" : ""}`} />
                 </DropdownMenuItem>
-
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-xs text-muted-foreground">Font size</DropdownMenuLabel>
                 <DropdownMenuItem id="font-small-item" onClick={() => setFontSize(15)}>
@@ -319,7 +315,6 @@ ${el.querySelector(".reader-content")?.innerHTML ?? ""}
                   <span className="flex-1">X-Large</span>
                   <Check size={13} className={`typo-check ${fontSize === 24 ? "typo-check--visible" : ""}`} />
                 </DropdownMenuItem>
-
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-xs text-muted-foreground">Line spacing</DropdownMenuLabel>
                 <DropdownMenuItem id="line-compact-item" onClick={() => setLineHeight(1.5)}>
@@ -337,7 +332,7 @@ ${el.querySelector(".reader-content")?.innerHTML ?? ""}
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Theme panel trigger */}
+            {/* Theme */}
             <button
               className="action-btn"
               aria-label={`Theme: ${currentThemeLabel}`}
@@ -347,9 +342,7 @@ ${el.querySelector(".reader-content")?.innerHTML ?? ""}
               <Palette size={16} />
             </button>
 
-
-
-            {/* Supabase user auth */}
+            {/* Auth */}
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -359,14 +352,14 @@ ${el.querySelector(".reader-content")?.innerHTML ?? ""}
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel className="text-xs text-muted-foreground truncate">
-                    {user.email || user.phone || "Authenticated"}
+                    {user.email || "Authenticated"}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     id="sync-now-item"
                     onClick={async () => {
                       toast.promise(syncDownAll().then(() => setRefreshKey((k) => k + 1)), {
-                        loading: "Syncing with Supabase...",
+                        loading: "Syncing…",
                         success: "Library synchronized!",
                         error: "Failed to sync library",
                       });
@@ -402,7 +395,7 @@ ${el.querySelector(".reader-content")?.innerHTML ?? ""}
               </button>
             )}
 
-            {/* Saved articles */}
+            {/* Saved */}
             <button
               className="action-btn"
               aria-label="Saved articles"
@@ -423,6 +416,23 @@ ${el.querySelector(".reader-content")?.innerHTML ?? ""}
               <Download size={16} />
             </button>
           </div>
+        </div>
+
+        {/* ── Row 2 (mobile only): Full-width URL form ── */}
+        <div className="app-header-row2">
+          <form onSubmit={handleFetch} className="app-url-form">
+            <Input
+              id="url-input"
+              type="text"
+              placeholder="Paste an article URL…"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="flex-1 h-9 text-sm"
+            />
+            <Button type="submit" disabled={loading} id="read-btn" className="shrink-0 h-9 px-4 text-sm">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Read"}
+            </Button>
+          </form>
         </div>
       </header>
 

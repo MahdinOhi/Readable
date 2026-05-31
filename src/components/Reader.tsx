@@ -81,7 +81,7 @@ export function Reader({ article, fontSize, lineHeight, fontFamily, onEdit, onDe
   return (
     <article
       id="reader-article"
-      className="mx-auto max-w-2xl px-6 py-12"
+      className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12"
       style={{
         fontSize: `${fontSize}px`,
         lineHeight,
@@ -91,12 +91,12 @@ export function Reader({ article, fontSize, lineHeight, fontFamily, onEdit, onDe
             : 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       }}
     >
-      <header className="mb-8 border-b border-border pb-6 flex flex-col gap-3">
-        <div className="flex justify-between items-start gap-4">
-          <h1 className="text-3xl font-bold leading-tight text-foreground sm:text-4xl flex-1">
+      <header className="mb-6 border-b border-border pb-5 flex flex-col gap-2 sm:mb-8 sm:pb-6 sm:gap-3">
+        <div className="flex justify-between items-start gap-3">
+          <h1 className="text-2xl font-bold leading-tight text-foreground sm:text-3xl md:text-4xl flex-1">
             {article.title}
           </h1>
-          <div className="flex items-center gap-1.5 flex-shrink-0 print:hidden mt-1">
+          <div className="flex items-center gap-1 flex-shrink-0 print:hidden mt-0.5">
             {onEdit && (
               <button
                 onClick={() => onEdit(article)}
@@ -117,14 +117,14 @@ export function Reader({ article, fontSize, lineHeight, fontFamily, onEdit, onDe
             )}
           </div>
         </div>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm text-muted-foreground flex flex-wrap gap-x-1.5">
           {article.byline && <span>{article.byline}</span>}
-          {article.byline && article.publishedTime && <span> · </span>}
+          {article.byline && article.publishedTime && <span>·</span>}
           {article.publishedTime && (
             <span>{new Date(article.publishedTime).toLocaleDateString()}</span>
           )}
           {article.siteName && (
-            <span> · {article.siteName}</span>
+            <span>· {article.siteName}</span>
           )}
         </div>
       </header>

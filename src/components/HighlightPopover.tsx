@@ -7,10 +7,13 @@ interface Props {
 }
 
 export function HighlightPopover({ x, y, onPick }: Props) {
+  // Clamp x so the popover never overflows the viewport
+  const safeX = Math.max(80, Math.min(x, window.innerWidth - 80));
+
   return (
     <div
-      className="fixed z-50 flex gap-1 rounded-full border border-border bg-card px-2 py-1.5 shadow-lg"
-      style={{ left: x, top: y, transform: "translate(-50%, -120%)" }}
+      className="fixed z-50 flex gap-1.5 rounded-full border border-border bg-card px-2.5 py-2 shadow-xl"
+      style={{ left: safeX, top: y, transform: "translate(-50%, -120%)" }}
       onMouseDown={(e) => e.preventDefault()}
     >
       {HIGHLIGHT_COLORS.map((c) => (
@@ -19,7 +22,7 @@ export function HighlightPopover({ x, y, onPick }: Props) {
           aria-label={c.name}
           title={c.name}
           onClick={() => onPick(c.value)}
-          className="h-5 w-5 rounded-full border border-black/10 transition-transform hover:scale-110"
+          className="h-6 w-6 rounded-full border border-black/15 transition-transform hover:scale-110 active:scale-95"
           style={{ backgroundColor: c.bg }}
         />
       ))}

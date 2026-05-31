@@ -95,12 +95,12 @@ export function LibraryDashboard({ onSelectArticle, refreshTrigger }: Props) {
   });
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 md:py-12">
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 md:py-10 lg:py-12">
       {/* Top dashboard action bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8 pb-6 border-b border-border">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 pb-5 border-b border-border sm:mb-8 sm:pb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Your Library</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl lg:text-3xl">Your Library</h1>
+          <p className="text-xs text-muted-foreground mt-0.5 sm:text-sm sm:mt-1">
             {articles.length} article{articles.length !== 1 && "s"} saved distraction-free
           </p>
         </div>
@@ -112,11 +112,12 @@ export function LibraryDashboard({ onSelectArticle, refreshTrigger }: Props) {
               setEditingArticle(null);
               setDialogOpen(true);
             }}
-            className="flex items-center gap-1.5 h-9"
+            className="flex items-center gap-1.5 h-9 text-sm px-3"
             id="create-custom-article-btn"
           >
-            <Plus size={16} />
-            <span>Create Custom</span>
+            <Plus size={15} />
+            <span className="hidden xs:inline sm:inline">Create Custom</span>
+            <span className="xs:hidden sm:hidden">New</span>
           </Button>
 
           {/* Toggle view buttons */}
@@ -190,7 +191,7 @@ export function LibraryDashboard({ onSelectArticle, refreshTrigger }: Props) {
         </div>
       ) : viewMode === "grid" ? (
         /* GRID VIEW */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filtered.map((a) => (
             <Card
               key={a.id}
@@ -259,7 +260,7 @@ export function LibraryDashboard({ onSelectArticle, refreshTrigger }: Props) {
               <div
                 key={a.id}
                 onClick={() => onSelectArticle(a)}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-muted/40 cursor-pointer transition-colors group gap-3"
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 hover:bg-muted/40 cursor-pointer transition-colors group gap-2 sm:gap-3"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
